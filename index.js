@@ -12,6 +12,20 @@ const socketIO = require('socket.io')
 dotenv.config()
 const PORT = process.env.PORT || 3001
 
+let isDBConnected = false
+
+
+db.getConnection((err, connection) => {
+  if (err) {
+    console.log('❌ DB Connection Failed:', err.message)
+    isDBConnected = false
+  } else {
+    console.log('✅ DB Connected Successfully')
+    isDBConnected = true
+    connection.release()
+  }
+})
+
 // Middleware
 app.use(cors())
 app.use(express.json())
@@ -84,7 +98,7 @@ const ROUND_TIME = process.env.ROUND_TIME || 120
 const roundTimers = {}
 const ROUND_TIMER = ROUND_TIME * 1000
 
-function startRoundTimer (roomId) {
+function startRoundTimer(roomId) {
   if (roundTimers[roomId]) clearTimeout(roundTimers[roomId])
 
   roundTimers[roomId] = setTimeout(() => {
@@ -92,7 +106,7 @@ function startRoundTimer (roomId) {
   }, ROUND_TIMER)
 }
 
-function endRound (roomId) {
+function endRound(roomId) {
   db.query(`SELECT * FROM rooms WHERE room_id=?`, [roomId], (err, rows) => {
     if (err || rows.length === 0) return
     const room = rows[0]
@@ -170,7 +184,7 @@ ORDER BY rp.joined_at ASC
                 })
 
                 setTimeout(() => {
-                  
+
                   db.query(
                     'SELECT user_id FROM room_players WHERE room_id = ?',
                     [roomId],
@@ -413,7 +427,10 @@ app.use('/api/auth', loginRoutes)
 app.use('/api/play', playRoutes(io))
 
 app.get('/', (req, res) => {
-  res.send('🚀 Server is running!')
+  res.json({
+    server: 'running',
+    db: isDBConnected ? 'connected' : 'not connected'
+  })
 })
 
 server.listen(PORT, () => {
